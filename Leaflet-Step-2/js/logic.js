@@ -45,14 +45,14 @@ var satelite
 // Store our API endpoint inside queryUrl 
 // get last month earthquake all over the world
 var queryUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson"
-// var queryUrl = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2014-01-01&endtime=" +
-//  "2014-01-02&maxlongitude=-69.52148437&minlongitude=-123.83789062&maxlatitude=48.74894534&minlatitude=25.16517337";
+var plateLink ="https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json";
 
 // Perform a GET request to the query URL
-d3.json(queryUrl, function(data) {
+d3.json(queryUrl, function(earthquakeData) {
+  d3.json(plateLink, function(plateData) {
   // Once we get a response, send the data.features object to the createFeatures function
-  createFeatures(data.features);
-  console.log(data.features);
+    createLayers(earthquakeData.features, plateData);
+  }); 
 });
 
 // Define function to set the circle color based on the magnitude
@@ -71,8 +71,9 @@ function circleColor(magnitude) {
     return "Maroon"}
   }
 
-function createFeatures(earthquakeData) {
+function createLayers(earthquakeData,plateData) {
   // Define a function we want to run once for each feature in the features array
+  
   // Give each feature a popup describing the place and time of the earthquake
   function onEachFeature(feature, layer) {
     layer.bindPopup("<h3>" + feature.properties.place +
@@ -82,7 +83,7 @@ function createFeatures(earthquakeData) {
 
   // Create a GeoJSON layer containing the features array on the earthquakeData object
   // Run the onEachFeature function once for each piece of data in the array
-  var earthquakes = L.geoJSON(earthquakeData, {
+  var earthquakesLayer = L.geoJSON(earthquakeData, {
     pointToLayer: function(earthquakeData, latlng) {
       return L.circle(latlng, {
         radius: (earthquakeData.properties.mag) * 10000,
@@ -94,29 +95,18 @@ function createFeatures(earthquakeData) {
     },
     onEachFeature: onEachFeature
   });
-  // Sending our earthquakes layer to the createMap function
-  createMap(earthquakes);
-}
 
-function createPlat() { 
-  // retrive Tectonic Plate geoJSON data.
-  var plateLink ="https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json";
-  d3.json(plateLink, function(plateData) {
-  console.log(plateData);
-
-  var tectonicplates = L.geoJson(plateData, {
+  // Create a GeoJSON layer containing the techtonic plate data
+  var tectonicplatesLayer = L.geoJson(plateData, {
     color: "orange",
     weight: 2
   });
-  //.addTo(myMap);
-    // Sending our earthquakes layer to the createMap function
-    createMap(tectonicplates);
-    // add the tectonicplates layer to the map.
-    tectonicplates.addTo(Mymap);
-});
+
+  // Sending both layers to the createMap function
+  createMap(earthquakesLayer,tectonicplatesLayer);
 }
 
-function createMap(earthquakes) {
+function createMap(earthquakesLayer,tectonicplatesLayer) {
   // Define a baseMaps object to hold our base layers
   var baseMaps = {
     "Street Map": streetmap,
@@ -128,14 +118,15 @@ function createMap(earthquakes) {
   // Create overlay object to hold our overlay layer
   var overlayMaps = {
    // "Tectonic Plates": tectonicplates,
-    "Earthquakes": earthquakes
+    "Earthquakes": earthquakesLayer,
+    "Tectonicplates" : tectonicplatesLayer
   };
 
   // Create our map, giving it the streetmap and earthquakes layers to display on load
   var myMap = L.map("map", {
     center: [37.09, -95.71],
-    zoom: 5,
-    layers: [streetmap, earthquakes]
+    zoom: 4,
+    layers: [darkmap, tectonicplatesLayer, earthquakesLayer]
   });
 
   // Add Legend at the right bottom corner
